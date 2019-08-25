@@ -100,7 +100,7 @@ Resources:
         -
           Key: StudentName
           Value: !Ref StudentName
-  EC2: # for now this is in a public subnet, needs to be changed.
+  EC2:
     Type: "AWS::EC2::Instance"
     DeletionPolicy: Delete
     Properties:
