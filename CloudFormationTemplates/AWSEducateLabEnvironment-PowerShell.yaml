@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  myKeyPair: 
+    Description: Amazon EC2 Key Pair.  If nothing shows up, ensure you have created a key pair.
+    Type: "AWS::EC2::KeyPair::KeyName"
+  StudentName:
+    Type: String
+    Description: Enter your name in FirstInitialLastName format.  Ex - Mickey Mouse = mmouse 
+Resources:
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: 192.168.0.0/16
+      Tags:
+        - Key: Name
+          Value: ITSE-1359-1001
+  IGW:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - Key: Name
+          Value: ITSE-1359-1001-IGW
+  GatewayAttach:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      InternetGatewayId: !Ref IGW
+      VpcId: !Ref VPC
+  SubnetPublicSharedA:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ]
+      CidrBlock: 192.168.200.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: ITSE-1359-1001-AdminSubnet
+  SubnetRouteTableAssociatePublicA:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref SubnetPublicSharedA
+  RouteDefaultPublic:
+    Type: "AWS::EC2::Route"
+    DependsOn: GatewayAttach
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+      RouteTableId: !Ref RouteTablePublic
+  RouteTablePublic:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: ITSE-1359-1001-PublicSubnetRouteTable
+  RouteTablePrivateA:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: ITSE-1359-1001-PrivateSubnetRouteTable
+  SG:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: !Join ["", [!Ref StudentName, "-PublicSG"]]
+      GroupDescription:  !Join ["", ["Public Security Group for ", !Ref StudentName]]
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "80"
+          FromPort: "80"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "22"
+          FromPort: "22"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "3389"
+          FromPort: "3389"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "631"
+          FromPort: "631"
+      SecurityGroupEgress:
+        -
+          CidrIp: 0.0.0.0/0
+          ToPort: "-1"
+          IpProtocol: "-1"
+      Tags:
+        -
+          Key: SecurityGroup
+          Value: Bastion
+        -
+          Key: StudentName
+          Value: !Ref StudentName
+  EC2: # for now this is in a public subnet, needs to be changed.
+    Type: "AWS::EC2::Instance"
+    DeletionPolicy: Delete
+    Properties:
+      ImageId: ami-096ce3eb31e287a5e
+      InstanceType: t2.medium
+      KeyName: !Ref myKeyPair
+      # IamInstanceProfile: Class-SSM-Role
+      SecurityGroupIds:
+        - !Ref SG
+      SubnetId: !Ref SubnetPublicSharedA
+      Tags:
+        -
+          Key: ServerType
+          Value: Bastion
+        -
+          Key: StudentName
+          Value: !Ref StudentName
