@@ -6,6 +6,18 @@ Parameters:
   StudentName:
     Type: String
     Description: Enter your name in FirstInitialLastName format.  Ex - Mickey Mouse = mmouse 
+  ServerOS:
+    Type: String
+    Description: Please select the Server Operating System
+    Default: Windows
+    AllowedValues:
+      - Linux
+      - Windows
+Mappings:
+  RegionMap:
+    us-east-1:
+      "Linux" : "ami-0b898040803850657"
+      "Windows" : "ami-06a4e829b8bbad61e"
 Resources:
   VPC:
     Type: "AWS::EC2::VPC"
@@ -104,7 +116,7 @@ Resources:
     Type: "AWS::EC2::Instance"
     DeletionPolicy: Delete
     Properties:
-      ImageId: ami-096ce3eb31e287a5e
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", !Ref ServerOS]
       InstanceType: t2.medium
       KeyName: !Ref myKeyPair
       # IamInstanceProfile: Class-SSM-Role
