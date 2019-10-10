@@ -1,0 +1,567 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  myKeyPair:
+    Description: Amazon EC2 Key Pair.  If nothing shows up, ensure you have created a key pair.
+    Type: "AWS::EC2::KeyPair::KeyName"
+  StudentName:
+    Type: String
+    Description: Enter your name in FirstInitialLastName format.  Ex - Mickey Mouse = mmouse
+  ServerOS:
+    Type: String
+    Description: Please select the Server Operating System
+    Default: Windows
+    AllowedValues:
+      - Linux
+      - Windows
+Mappings:
+  RegionMap:
+    us-east-1:
+      "Linux" : "ami-0b898040803850657"
+      #"Windows" : "ami-05ad3e9ea4dcd9863"
+      "Windows" : "ami-06a4e829b8bbad61e" #Windows2019
+Resources:
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: 192.168.0.0/16
+      Tags:
+        - Key: Name
+          Value: ITSE-1359-1001
+  IGW:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - Key: Name
+          Value: ITSE-1359-1001-IGW
+  GatewayAttach:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      InternetGatewayId: !Ref IGW
+      VpcId: !Ref VPC
+  SubnetPublicSharedA:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ]
+      CidrBlock: 192.168.200.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: ITSE-1359-1001-AdminSubnet
+  SubnetRouteTableAssociatePublicA:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref SubnetPublicSharedA
+  RouteDefaultPublic:
+    Type: "AWS::EC2::Route"
+    DependsOn: GatewayAttach
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+      RouteTableId: !Ref RouteTablePublic
+  RouteTablePublic:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: ITSE-1359-1001-PublicSubnetRouteTable
+  RouteTablePrivateA:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: ITSE-1359-1001-PrivateSubnetRouteTable
+  SG:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: !Join ["", [!Ref StudentName, "-PublicSG"]]
+      GroupDescription:  !Join ["", ["Public Security Group for ", !Ref StudentName]]
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "80"
+          FromPort: "80"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "22"
+          FromPort: "22"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "3389"
+          FromPort: "3389"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: udp
+          ToPort: "123"
+          FromPort: "123"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "135"
+          FromPort: "135"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: udp
+          ToPort: "138"
+          FromPort: "138"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "65535"
+          FromPort: "1024"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "389"
+          FromPort: "389"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: udp
+          ToPort: "389"
+          FromPort: "389"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "636"
+          FromPort: "636"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "3268"
+          FromPort: "3268"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "3269"
+          FromPort: "3269"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "53"
+          FromPort: "53"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: udp
+          ToPort: "53"
+          FromPort: "53"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "88"
+          FromPort: "88"                                                
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: udp
+          ToPort: "88"
+          FromPort: "88"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: "445"
+          FromPort: "445"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: udp
+          ToPort: "445"
+          FromPort: "445"
+        -
+          CidrIp: 0.0.0.0/0
+          IpProtocol: icmp
+          ToPort: "-1"
+          FromPort: "-1"                                   
+#        -
+#          CidrIp: 0.0.0.0/0  #Opened up all udp/tcp for testing
+#          IpProtocol: "-1"
+#          ToPort: "-1"
+      SecurityGroupEgress:
+        -
+          CidrIp: 0.0.0.0/0
+          ToPort: "-1"
+          IpProtocol: "-1"
+      Tags:
+        -
+          Key: SecurityGroup
+          Value: Bastion
+        -
+          Key: StudentName
+          Value: !Ref StudentName
+  EC2DC:
+    Type: "AWS::EC2::Instance"
+    DeletionPolicy: Delete
+    Properties:
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", !Ref ServerOS]
+      InstanceType: t2.medium
+      KeyName: !Ref myKeyPair
+      # IamInstanceProfile: Class-SSM-Role
+      SecurityGroupIds:
+        - !Ref SG
+      SubnetId: !Ref SubnetPublicSharedA
+      Tags:
+        -
+          Key: ServerOS
+          Value: !Ref ServerOS
+        -
+          Key: StudentName
+          Value: !Ref StudentName
+        -
+          Key: Name
+          Value: !Ref ServerOS
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - "<script>\n"
+            - 'cfn-init.exe -v -s '
+            - Ref: AWS::StackId
+            - " -r EC2DC"
+            - " --configsets ascending"
+            - " "
+            - " --region "
+            - Ref: AWS::Region
+            - "\n</script>"
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          ascending:
+          - config0
+          - config1
+        config0:
+          files:
+            c:\installAD.ps1:
+              content:
+                Fn::Join:
+                - ''
+                - - "Install-WindowsFeature ad-domain-services -IncludeAllSubFeature -IncludeManagementTools\n"
+                  - "$password = 'P@ssw0rd1' | ConvertTo-SecureString -asPlainText -Force\n"
+                  - "Import-Module ADDSDeployment\n"
+                  - "Install-ADDSForest -CreateDnsDelegation:$false -DatabasePath 'c:\\Windows\\NTDS' -DomainMode 'WinThreshold' -DomainName 'company.pri' -DomainNetbiosName 'COMPANY' -ForestMode 'WinThreshold' -InstallDns:$true -LogPath 'C:\\Windows\\NTDS' -NoRebootOnCompletion:$false -SysvolPath 'C:\\Windows\\SYSVOL' -Force:$true -SafeModeAdministratorPassword $password\n"
+            c:\createUser.ps1:
+              content:
+                Fn::Join:
+                - ''
+                - - "New-ADUser -DisplayName:'Sammy Student' -GivenName:'Sammy' -Name:'Sammy Student' -Path:'CN=Users,DC=company,DC=pri' -SamAccountName:'student' -Surname:'Student' -Type:'user'\n"
+                  - "Set-ADAccountPassword -Identity:'CN=Sammy Student,CN=Users,DC=company,DC=pri' -NewPassword (ConvertTo-SecureString -AsPlainText 'P@ssw0rd1' -Force) -Reset:$true\n"
+                  - "Enable-ADAccount -Identity:'CN=Sammy Student,CN=Users,DC=company,DC=pri'\n"
+                  - "Add-ADPrincipalGroupMembership -Identity:'CN=Sammy Student,CN=Users,DC=company,DC=pri' -MemberOf:'CN=Domain Admins,CN=Users,DC=company,DC=pri'\n"
+                  - "Set-ADAccountControl -AccountNotDelegated:$false -AllowReversiblePasswordEncryption:$false -CannotChangePassword:$false -DoesNotRequirePreAuth:$false -Identity:'CN=Sammy Student,CN=Users,DC=company,DC=pri' -PasswordNeverExpires:$true -UseDESKeyOnly:$false\n"
+                  - "Set-ADUser -ChangePasswordAtLogon:$false -Identity:'CN=Sammy Student,CN=Users,DC=company,DC=pri' -SmartcardLogonRequired:$false\n"
+        config1:
+          commands:
+            1-set-powershell-execution-policy:
+              command: powershell.exe -Command Set-ExecutionPolicy UnRestricted -Force
+              waitAfterCompletion: '0'
+            2-rename-computer:
+              command: powershell.exe -Command Rename-Computer -NewName EC2DC -Restart
+              waitAfterCompletion: 'forever'
+            # 3-set-dns-address:
+            #   command:
+            #     Fn::Join:
+            #       - ''
+            #       - - 'powershell.exe -Command Set-DnsClientServerAddress -InterfaceIndex 3 -ServerAddresses '
+            #         - !GetAtt EC2DC.PrivateIp
+            #   waitAfterCompletion: '0'
+            #   ignoreErrors: "true"
+            # 4-set-dns-address:
+            #   command:
+            #     Fn::Join:
+            #       - ''
+            #       - - 'powershell.exe -Command Set-DnsClientServerAddress -InterfaceIndex 4 -ServerAddresses '
+            #         - !GetAtt EC2DC.PrivateIp
+            #   waitAfterCompletion: '0'
+            #   ignoreErrors: "true"
+            # 5-set-dns-address:
+            #   command:
+            #     Fn::Join:
+            #       - ''
+            #       - - 'powershell.exe -Command Set-DnsClientServerAddress -InterfaceIndex 5 -ServerAddresses '
+            #         - !GetAtt EC2DC.PrivateIp
+            #   waitAfterCompletion: '0'
+            #   ignoreErrors: "true"
+            3-set-dns-suffix:
+              command: powershell.exe -Command "Set-DnsClientGlobalSetting -SuffixSearchList @('company.pri', 'us-west-2.ec2-utilities.amazonaws.com', 'us-east-1.ec2-utilities.amazonaws.com', 'us-west-2.compute.internal')"
+              waitAfterCompletion: '0'
+              ignoreErrors: "true"
+            4-installad:
+              command: powershell.exe -Command c:\installAD.ps1
+              ignoreErrors: "true"
+              waitAfterCompletion: 'forever'
+            5-createuser:
+              command: powershell.exe -Command c:\createUser.ps1
+              ignoreErrors: "true"
+  EC2Web1:
+    Type: "AWS::EC2::Instance"
+#    DependsOn: EC2DC
+    DeletionPolicy: Delete
+    Properties:
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", !Ref ServerOS]
+      InstanceType: t2.medium
+      KeyName: !Ref myKeyPair
+      # IamInstanceProfile: Class-SSM-Role
+      SecurityGroupIds:
+        - !Ref SG
+      SubnetId: !Ref SubnetPublicSharedA
+      Tags:
+        -
+          Key: ServerOS
+          Value: !Ref ServerOS
+        -
+          Key: StudentName
+          Value: !Ref StudentName
+        -
+          Key: Name
+          Value: !Ref ServerOS
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - "<script>\n"
+            - 'cfn-init.exe -v -s '
+            - Ref: AWS::StackId
+            - " -r EC2Web1"
+            - " --configsets ascending"
+            - " "
+            - " --region "
+            - Ref: AWS::Region
+            - "\n</script>"
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          ascending:
+          - config0
+          - config1
+        config0:
+          files:
+            c:\joinDomain.ps1:
+              content:
+                Fn::Join:
+                - ''
+                - - "$domain = 'company.pri'\n"
+                  - "$password = 'P@ssw0rd1' | ConvertTo-SecureString -asPlainText -Force\n"
+                  - "$username = '$domain\\student'\n"
+                  - "$credential = New-Object System.Management.Automation.PSCredential($username, $password)\n"
+                  - "Add-Computer -DomainName $domain -Credential $credential -Restart\n"
+        config1:
+          commands:
+            1-set-powershell-execution-policy:
+              command: powershell.exe -Command Set-ExecutionPolicy UnRestricted -Force
+              waitAfterCompletion: '0'
+            2-rename-computer:
+              command: powershell.exe -Command Rename-Computer -NewName EC2Web1 -Restart
+              waitAfterCompletion: 'forever'
+            3-set-dns-address:
+              command:
+                Fn::Join:
+                  - ''
+                  - - 'powershell.exe -Command Set-DnsClientServerAddress -InterfaceIndex 3 -ServerAddresses '
+                    - !GetAtt EC2DC.PrivateIp
+              waitAfterCompletion: '0'
+              ignoreErrors: "true"
+            4-set-dns-address:
+              command:
+                Fn::Join:
+                  - ''
+                  - - 'powershell.exe -Command Set-DnsClientServerAddress -InterfaceIndex 4 -ServerAddresses '
+                    - !GetAtt EC2DC.PrivateIp
+              waitAfterCompletion: '0'
+              ignoreErrors: "true"
+            5-set-dns-address:
+              command:
+                Fn::Join:
+                  - ''
+                  - - 'powershell.exe -Command Set-DnsClientServerAddress -InterfaceIndex 5 -ServerAddresses '
+                    - !GetAtt EC2DC.PrivateIp
+              waitAfterCompletion: '0'
+              ignoreErrors: "true"
+            6-set-dns-suffix:
+              command: powershell.exe -Command "Set-DnsClientGlobalSetting -SuffixSearchList @('company.pri', 'us-west-2.ec2-utilities.amazonaws.com', 'us-east-1.ec2-utilities.amazonaws.com', 'us-west-2.compute.internal')"
+              waitAfterCompletion: '900'
+              ignoreErrors: "true"
+            7-joindomain:
+              command: powershell.exe -Command c:\joinDomain.ps1
+  EC2Share1:
+    Type: "AWS::EC2::Instance"
+#    DependsOn: EC2DC
+    DeletionPolicy: Delete
+    Properties:
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", !Ref ServerOS]
+      InstanceType: t2.medium
+      KeyName: !Ref myKeyPair
+      # IamInstanceProfile: Class-SSM-Role
+      SecurityGroupIds:
+        - !Ref SG
+      SubnetId: !Ref SubnetPublicSharedA
+      Tags:
+        -
+          Key: ServerOS
+          Value: !Ref ServerOS
+        -
+          Key: StudentName
+          Value: !Ref StudentName
+        -
+          Key: Name
+          Value: !Ref ServerOS
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - "<script>\n"
+            - 'cfn-init.exe -v -s '
+            - Ref: AWS::StackId
+            - " -r EC2Share1"
+            - " --configsets ascending"
+            - " "
+            - " --region "
+            - Ref: AWS::Region
+            - "\n</script>"
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          ascending:
+          - config0
+          - config1
+        config0:
+          files:
+            c:\joinDomain.ps1:
+              content:
+                Fn::Join:
+                - ''
+                - - "$domain = 'company.pri'\n"
+                  - "$password = 'P@ssw0rd1' | ConvertTo-SecureString -asPlainText -Force\n"
+                  - "$username = '$domain\\student'\n"
+                  - "$credential = New-Object System.Management.Automation.PSCredential($username, $password)\n"
+                  - "Add-Computer -DomainName $domain -Credential $credential -Restart\n"
+        config1:
+          commands:
+            1-set-powershell-execution-policy:
+              command: powershell.exe -Command Set-ExecutionPolicy UnRestricted -Force
+              waitAfterCompletion: '0'
+            2-rename-computer:
+              command: powershell.exe -Command Rename-Computer -NewName EC2Share1 -Restart
+              waitAfterCompletion: 'forever'
+            3-set-dns-address:
+              command:
+                Fn::Join:
+                  - ''
+                  - - 'powershell.exe -Command Set-DnsClientServerAddress -InterfaceIndex 3 -ServerAddresses '
+                    - !GetAtt EC2DC.PrivateIp
+              waitAfterCompletion: '0'
+              ignoreErrors: "true"
+            4-set-dns-address:
+              command:
+                Fn::Join:
+                  - ''
+                  - - 'powershell.exe -Command Set-DnsClientServerAddress -InterfaceIndex 4 -ServerAddresses '
+                    - !GetAtt EC2DC.PrivateIp
+              waitAfterCompletion: '0'
+              ignoreErrors: "true"
+            5-set-dns-address:
+              command:
+                Fn::Join:
+                  - ''
+                  - - 'powershell.exe -Command Set-DnsClientServerAddress -InterfaceIndex 5 -ServerAddresses '
+                    - !GetAtt EC2DC.PrivateIp
+              waitAfterCompletion: '0'
+              ignoreErrors: "true"
+            6-set-dns-suffix:
+              command: powershell.exe -Command "Set-DnsClientGlobalSetting -SuffixSearchList @('company.pri', 'us-west-2.ec2-utilities.amazonaws.com', 'us-east-1.ec2-utilities.amazonaws.com', 'us-west-2.compute.internal')"
+              waitAfterCompletion: '900'
+              ignoreErrors: "true"
+            7-joindomain:
+              command: powershell.exe -Command c:\joinDomain.ps1
+  EC2App1:
+    Type: "AWS::EC2::Instance"
+#    DependsOn: EC2DC
+    DeletionPolicy: Delete
+    Properties:
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", !Ref ServerOS]
+      InstanceType: t2.medium
+      KeyName: !Ref myKeyPair
+      # IamInstanceProfile: Class-SSM-Role
+      SecurityGroupIds:
+        - !Ref SG
+      SubnetId: !Ref SubnetPublicSharedA
+      Tags:
+        -
+          Key: ServerOS
+          Value: !Ref ServerOS
+        -
+          Key: StudentName
+          Value: !Ref StudentName
+        -
+          Key: Name
+          Value: !Ref ServerOS
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - "<script>\n"
+            - 'cfn-init.exe -v -s '
+            - Ref: AWS::StackId
+            - " -r EC2App1"
+            - " --configsets ascending"
+            - " "
+            - " --region "
+            - Ref: AWS::Region
+            - "\n</script>"
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          ascending:
+          - config0
+          - config1
+        config0:
+          files:
+            c:\joinDomain.ps1:
+              content:
+                Fn::Join:
+                - ''
+                - - "$domain = 'company.pri'\n"
+                  - "$password = 'P@ssw0rd1' | ConvertTo-SecureString -asPlainText -Force\n"
+                  - "$username = '$domain\\student'\n"
+                  - "$credential = New-Object System.Management.Automation.PSCredential($username, $password)\n"
+                  - "Add-Computer -DomainName $domain -Credential $credential -Restart\n"
+        config1:
+          commands:
+            1-set-powershell-execution-policy:
+              command: powershell.exe -Command Set-ExecutionPolicy UnRestricted -Force
+              waitAfterCompletion: '0'
+            2-rename-computer:
+              command: powershell.exe -Command Rename-Computer -NewName EC2App1 -Restart
+              waitAfterCompletion: 'forever'
+            3-set-dns-address:
+              command:
+                Fn::Join:
+                  - ''
+                  - - 'powershell.exe -Command Set-DnsClientServerAddress -InterfaceIndex 3 -ServerAddresses '
+                    - !GetAtt EC2DC.PrivateIp
+              waitAfterCompletion: '0'
+              ignoreErrors: "true"
+            4-set-dns-address:
+              command:
+                Fn::Join:
+                  - ''
+                  - - 'powershell.exe -Command Set-DnsClientServerAddress -InterfaceIndex 4 -ServerAddresses '
+                    - !GetAtt EC2DC.PrivateIp
+              waitAfterCompletion: '0'
+              ignoreErrors: "true"
+            5-set-dns-address:
+              command:
+                Fn::Join:
+                  - ''
+                  - - 'powershell.exe -Command Set-DnsClientServerAddress -InterfaceIndex 5 -ServerAddresses '
+                    - !GetAtt EC2DC.PrivateIp
+              waitAfterCompletion: '0'
+              ignoreErrors: "true"
+            6-set-dns-suffix:
+              command: powershell.exe -Command "Set-DnsClientGlobalSetting -SuffixSearchList @('company.pri', 'us-west-2.ec2-utilities.amazonaws.com', 'us-east-1.ec2-utilities.amazonaws.com', 'us-west-2.compute.internal')"
+              waitAfterCompletion: '900'
+              ignoreErrors: "true"
+            7-joindomain:
+              command: powershell.exe -Command c:\joinDomain.ps1
